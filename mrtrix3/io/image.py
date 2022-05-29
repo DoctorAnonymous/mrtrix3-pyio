@@ -37,6 +37,7 @@ class Image (object):
         self.transform = transform
         self.grad = grad
         self.comments = comments if comments is not None else []
+        self.others = []
 
 
     _array_attr = ['shape', 'ndim', 'dtype', 'size', 'strides', 'nbytes']
@@ -134,6 +135,13 @@ class Image (object):
                         self.grad = gbrow
                     else:
                         self.grad = np.vstack([self.grad, gbrow])
+                else:
+                    other = fl
+                    for i in ['mrtrix image','mrtrix_version','END']:
+                        if i in other:
+                            other = ''
+                    if not other == '':
+                        self.others.append(fl)
         if not header_only:
             # read image data
             with ofun(filename, 'rb') as f:
@@ -175,6 +183,8 @@ class Image (object):
                 f.write('comments: %s\n' * len(self.comments) % tuple(self.comments))
             if self.grad is not None:
                 f.write(self._to_csv2D(self.grad, line_prefix='dw_scheme: '))
+            for other in self.others:
+                f.write(other + '\n')
             f.flush()
             offset = f.tell() + 13
             offset += int(np.floor(np.log10(offset))) + 1
@@ -191,7 +201,7 @@ class Image (object):
         strides = [0 for l in layout]
         stride, offset = int(dtype.itemsize), 0
         for dim in sorted(range(len(layout)), key=lambda k: int(layout[k][1:])):
-            if layout[dim][0] is '-':
+            if layout[dim][0] == '-':
                 strides[dim] = -stride
                 offset += (size[dim]-1) * stride
             else:
