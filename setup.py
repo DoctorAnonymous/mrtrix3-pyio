@@ -1,13 +1,14 @@
-from setuptools import setup
+from setuptools import setup, find_packages
+
 
 setup(name='mrtrix3',
-      version='py-0.0.1',
+      version='1.0.0',
       description='Python package to interface with MRtrix3 file formats.',
-      url='http://github.com/dchristiaens/mrtrix3-pyio.git',
-      author='Daan Christiaens',
-      author_email='daan.christiaens@kcl.ac.uk',
+      url='https://github.com/DoctorAnonymous/mrtrix3-pyio.git',
+      author='zcmscy',
+      author_email='zcmscy@icloud.com',
       license='MPL',
-      packages=['mrtrix3'],
+      packages=find_packages(),
       install_requires=['numpy'],
-      zip_safe=False)
-
+      zip_safe=False
+      )
