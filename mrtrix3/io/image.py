@@ -30,15 +30,14 @@ class Image (object):
     '''
 
     def __init__(self, data=None, vox=(),
-                       transform=np.eye(4),
-                       grad=None, comments=None):
+                 transform=np.eye(4),
+                 grad=None, comments=None):
         self.data = data
         self.vox = vox
         self.transform = transform
         self.grad = grad
         self.comments = comments if comments is not None else []
         self.others = []
-
 
     _array_attr = ['shape', 'ndim', 'dtype', 'size', 'strides', 'nbytes']
 
@@ -48,22 +47,19 @@ class Image (object):
                 raise AttributeError('Image data not set.')
             return getattr(self.data, attribute)
 
-
     def __copy__(self):
         return Image(self.data.copy(), self.vox,
-                self.transform.copy(), self.grad.copy(),
-                copy.copy(self.comments))
+                     self.transform.copy(), self.grad.copy(),
+                     copy.copy(self.comments))
 
     def copy(self):
         ''' Copy image in memory. '''
         return self.__copy__()
 
-
     @classmethod
     def empty_as(cls, hdr):
         ''' Create empty image based off the header of another image. '''
         return cls(None, hdr.vox, hdr.transform, hdr.grad, hdr.comments)
-
 
     @property
     def vox(self):
@@ -78,7 +74,6 @@ class Image (object):
     def vox(self, v):
         ''' Set voxel size. '''
         self._vox = tuple(map(float, v))
-
 
     @property
     def nvox(self):
@@ -119,9 +114,9 @@ class Image (object):
                     dtstr = fl.split(':')[1].strip()
                     dt = np.dtype(_dtdict.get(dtstr, 'u1'))
                 elif fl.startswith('file'):
-                    offset = int(fl.split('.')[1].strip());
+                    offset = int(fl.split('.')[1].strip())
                 elif fl.startswith('transform'):
-                    self.transform[tr_count,:] = np.array(fl.split(':')[1].strip().split(','), dtype=float)
+                    self.transform[tr_count, :] = np.array(fl.split(':')[1].strip().split(','), dtype=float)
                     tr_count = tr_count + 1
                 elif fl.startswith('labels'):
                     self.labels = fl.split(':')[1].strip()
@@ -137,7 +132,7 @@ class Image (object):
                         self.grad = np.vstack([self.grad, gbrow])
                 else:
                     other = fl
-                    for i in ['mrtrix image','mrtrix_version','END']:
+                    for i in ['mrtrix image', 'mrtrix_version', 'END']:
                         if i in other:
                             other = ''
                     if not other == '':
@@ -160,7 +155,6 @@ class Image (object):
                 self.data = np.ndarray(shape=imsize, dtype=dt, buffer=image, strides=s, offset=o)
         return self
 
-
     def save(self, filename):
         ''' Save image to MRtix .mif file. '''
         if self.data is None:
@@ -170,7 +164,7 @@ class Image (object):
         # write image header
         with open(filename, 'w', encoding='latin-1') as f:
             f.write('mrtrix image\n')
-            f.write('dim: ' + self._to_csv(self.shape) + '\n');
+            f.write('dim: ' + self._to_csv(self.shape) + '\n')
             f.write('vox: ' + self._to_csv(self.vox) + '\n')
             f.write('layout: ' + self._to_csv(self.layout, precision='%s') + '\n')
             f.write('datatype: ' + _dtdict_inv[self.dtype.descr[0][1]] + '\n')
@@ -187,7 +181,10 @@ class Image (object):
                 f.write(other + '\n')
             f.flush()
             offset = f.tell() + 13
+            tmp = int(np.floor(np.log10(offset)))
             offset += int(np.floor(np.log10(offset))) + 1
+            if int(np.floor(np.log10(offset))) > tmp:
+                offset += 1
             f.write('file: . {:d}\n'.format(offset))
             f.write('END\n')
             f.flush()
@@ -195,7 +192,6 @@ class Image (object):
         with open(filename, 'ab') as f:
             self.data.ravel(order='K').tofile(f)
         return self
-
 
     def _layout_to_strides(self, layout, size, dtype):
         strides = [0 for l in layout]
@@ -209,15 +205,13 @@ class Image (object):
             stride *= size[dim]
         return strides, offset
 
-
     @property
     def layout(self):
         ''' Data layout in output file.
         Currently, only positive strides are supported due to numpy limitations.
         '''
-        #return tuple(('-' if self.strides[s]<0 else '+') + str(s) for s in np.argsort(np.argsort(np.abs(self.strides))))
+        # return tuple(('-' if self.strides[s]<0 else '+') + str(s) for s in np.argsort(np.argsort(np.abs(self.strides))))
         return tuple('+'+str(s) for s in np.argsort(np.argsort(np.abs(self.strides))))
-
 
     def _to_csv(self, a, precision=None):
         if isinstance(precision, str):
@@ -231,7 +225,6 @@ class Image (object):
         elif not isinstance(precision, int) or precision < 0:
             raise ValueError('precision needs to be non-negative integer, got ' + str(precision))
         return ','.join(['%.'+str(precision)+'g']*len(a)) % tuple(a)
-
 
     def _to_csv2D(self, a, line_prefix='', postfix='\n', precision=None):
         if not isinstance(a, np.ndarray):
@@ -249,14 +242,13 @@ class Image (object):
         fmt = line_prefix+(postfix+line_prefix).join(fmt)
         return fmt % tuple(a.ravel()) + postfix
 
-
     def __str__(self):
         out = 'mrtrix image:'
         if self.data is not None:
             out += '\n  dimensions: ' + self._to_csv(self.shape) + '\n'
             out += '  voxel size: ' + self._to_csv(self.vox) + '\n'
             out += '  datatype: ' + _dtdict_inv[self.dtype.descr[0][1]] + '\n'
-            tx, ty, tz = str(self.transform[:3,:]).split('\n')
+            tx, ty, tz = str(self.transform[:3, :]).split('\n')
             out += '  transform: ' + tx + '\n'
             out += '             ' + ty + '\n'
             out += '             ' + tz
@@ -266,11 +258,9 @@ class Image (object):
             out += ' empty'
         return out
 
-
     def __iter__(self):
         self._pos = 0
         return self
-
 
     def __next__(self):
         if self._pos >= self.nvox:
@@ -292,7 +282,3 @@ def load_mrtrix(filename, **kwargs):
 def save_mrtrix(filename, image):
     ''' Save image in mrtrix format. '''
     image.save(filename)
-
-
-
-
