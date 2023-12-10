@@ -83,7 +83,7 @@ class Image (object):
         else:
             return np.prod(self.shape[:3])
 
-    def load(self, filename, header_only=False, memmap=False):
+    def load(self, filename, header_only=False, memmap=False, offset=0):
         ''' Load MRtrix .mif or .mif.gz file. '''
         is_gz = False
         if memmap:
@@ -114,7 +114,9 @@ class Image (object):
                     dtstr = fl.split(':')[1].strip()
                     dt = np.dtype(_dtdict.get(dtstr, 'u1'))
                 elif fl.startswith('file'):
-                    offset = int(fl.split('.')[1].strip())
+                    if offset == 0:
+                        offset = int(fl.split('.')[1].strip())
+                    print('offset: %d' % offset)
                 elif fl.startswith('transform'):
                     self.transform[tr_count, :] = np.array(fl.split(':')[1].strip().split(','), dtype=float)
                     tr_count = tr_count + 1
@@ -162,32 +164,34 @@ class Image (object):
         if not filename.endswith('.mif'):
             raise IOError('only .mif file type supported for writing')
         # write image header
-        with open(filename, 'w', encoding='latin-1') as f:
-            f.write('mrtrix image\n')
-            f.write('dim: ' + self._to_csv(self.shape) + '\n')
-            f.write('vox: ' + self._to_csv(self.vox) + '\n')
-            f.write('layout: ' + self._to_csv(self.layout, precision='%s') + '\n')
-            f.write('datatype: ' + _dtdict_inv[self.dtype.descr[0][1]] + '\n')
-            f.write(self._to_csv2D(self.transform[:3], 'transform: '))
-            if self.labels is not None:
-                f.write('labels: ' + self._to_csv(self.labels, precision='%s') + '\n')
-            if self.units is not None:
-                f.write('units: ' + self._to_csv(self.units, precision='%s') + '\n')
-            if self.comments:
-                f.write('comments: %s\n' * len(self.comments) % tuple(self.comments))
-            if self.grad is not None:
-                f.write(self._to_csv2D(self.grad, line_prefix='dw_scheme: '))
-            for other in self.others:
-                f.write(other + '\n')
-            f.flush()
-            offset = f.tell() + 13
-            tmp = int(np.floor(np.log10(offset)))
-            offset += int(np.floor(np.log10(offset))) + 1
-            if int(np.floor(np.log10(offset))) > tmp:
-                offset += 1
-            f.write('file: . {:d}\n'.format(offset))
-            f.write('END\n')
-            f.flush()
+        offset = 0
+        while 1:
+            with open(filename, 'w', encoding='latin-1') as f:
+                f.write('mrtrix image\n')
+                f.write('dim: ' + self._to_csv(self.shape) + '\n')
+                f.write('vox: ' + self._to_csv(self.vox) + '\n')
+                f.write('layout: ' + self._to_csv(self.layout, precision='%s') + '\n')
+                f.write('datatype: ' + _dtdict_inv[self.dtype.descr[0][1]] + '\n')
+                f.write(self._to_csv2D(self.transform[:3], 'transform: '))
+                if self.labels is not None:
+                    f.write('labels: ' + self._to_csv(self.labels, precision='%s') + '\n')
+                if self.units is not None:
+                    f.write('units: ' + self._to_csv(self.units, precision='%s') + '\n')
+                if self.comments:
+                    f.write('comments: %s\n' * len(self.comments) % tuple(self.comments))
+                if self.grad is not None:
+                    f.write(self._to_csv2D(self.grad, line_prefix='dw_scheme: '))
+                for other in self.others:
+                    f.write(other + '\n')
+                f.flush()
+                f.write('file: . {:d}\n'.format(offset))
+                # print(offset)
+                f.write('END\n')
+                f.flush()
+                if f.tell() == offset:
+                    break
+                else:
+                    offset = f.tell()
         # write image data
         with open(filename, 'ab') as f:
             self.data.ravel(order='K').tofile(f)
